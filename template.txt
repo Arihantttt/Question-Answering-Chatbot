@@ -1,0 +1,19 @@
+Here are 10 dashboards related to finance and business, each with a one-line description:
+ * CFO Dashboard: A high-level view of a company's financial health, consolidating key metrics for executive decision-making.
+ * Cash Flow Dashboard: Tracks the real-time movement of cash into and out of the business to monitor liquidity and spending power.
+ * Profitability Dashboard: Visualizes core revenue, cost, and profit margins to determine how efficiently the company is generating earnings.
+ * Accounts Payable/Receivable (AP/AR) Dashboard: Monitors the balances and aging of money owed to the company (AR) and money the company owes (AP).
+ * Budget vs. Actuals Dashboard: Compares planned financial figures to the actual performance to track variances and manage budget adherence.
+ * SaaS (Software as a Service) Metrics Dashboard: Focuses on subscription business indicators like Monthly Recurring Revenue (MRR), Churn Rate, and Customer Lifetime Value (CLV).
+ * Sales Performance Dashboard: Provides an overview of sales activities, pipeline status, and team performance against revenue targets.
+ * Marketing Analytics Dashboard: Tracks the effectiveness and ROI of marketing campaigns, including lead generation, conversion rates, and Cost Per Acquisition (CPA).
+ * Inventory Management Dashboard: Monitors stock levels, turnover rates, and order fulfillment to optimize supply chain and minimize holding costs.
+ * Executive Strategic Dashboard: Tracks long-term, cross-departmental Key Performance Indicators (KPIs) to monitor the overall strategic progress of the organization.
+
+Here are 5 more dashboards related to finance and business:
+ * Working Capital Dashboard: Measures the current assets minus current liabilities to assess a company's short-term operational liquidity and efficiency.
+ * Expense Analysis Dashboard: Provides a detailed breakdown of operational expenditures across different departments, categories, and vendors to identify cost-saving opportunities.
+ * Financial Reporting Dashboard: Summarizes the key figures from the primary financial statements (Income Statement, Balance Sheet, and Cash Flow Statement) for periodic reporting.
+ * Treasury and Debt Management Dashboard: Tracks the company's debt obligations, interest expenses, credit lines, and cash reserves for financial risk management.
+ * Project Finance Dashboard: Monitors the costs, budget adherence, and Return on Investment (ROI) for individual or a portfolio of specific business projects.
+
