@@ -1,0 +1,123 @@
+import xml.etree.ElementTree as ET
+from collections import defaultdict
+
+# Helper function to collect all unique KPI sets from the worksheets in a dashboard.
+def _collect_kpi_sets_for_dashboard(root, dashboard):
+    """
+    Internal helper to find all unique KPIs used in each worksheet of the given dashboard.
+    Returns a list of sets, where each set contains the KPIs for a single worksheet.
+    """
+    all_kpi_sets = []
+    # Set to track worksheet names already processed, preventing duplicates if 
+    # the same worksheet is used multiple times in the dashboard layout (zones).
+    processed_worksheets = set() 
+
+    for zone in dashboard.findall(".//zone"):
+        ws_name = zone.attrib.get("name")
+        
+        # Skip unnamed zones or zones we have already processed
+        if not ws_name or ws_name in processed_worksheets:
+            continue
+
+        current_kpis = set()
+        
+        # Find the definition of the worksheet by name
+        worksheets = root.findall(f".//worksheet[@name='{ws_name}']")
+
+        for ws in worksheets:
+            for col in ws.findall(".//column"):
+                kpi_name = col.attrib.get("caption") or col.attrib.get("name")
+                if not kpi_name or kpi_name.strip() == "":
+                    continue
+
+                # Check for and append formula if it is a calculated field
+                calc = col.find("calculation")
+                if calc is not None:
+                    formula = calc.attrib.get("formula")
+                    if formula:
+                        kpi_name = f"{kpi_name} ({formula})"
+
+                current_kpis.add(kpi_name)
+        
+        if current_kpis:
+            all_kpi_sets.append(current_kpis)
+            processed_worksheets.add(ws_name)
+            
+    return all_kpi_sets
+
+# -----------------------------------------------------------------------------
+# Function 1: Intersection (Original Request)
+# -----------------------------------------------------------------------------
+
+def get_dashboard_hierarchy_with_intersection(path):
+    """
+    Returns a list of KPIs that are common (intersect) across all worksheets in the 
+    first dashboard found in the Tableau XML file.
+
+    Args:
+        path (str): The file path to the Tableau XML (.twb) file.
+
+    Returns:
+        list[str]: A sorted list of common KPI names.
+    """
+    tree = ET.parse(path)
+    root = tree.getroot()
+    
+    # Focus on the first dashboard found
+    dashboards = root.findall(".//dashboard")
+    if not dashboards:
+        return []
+        
+    dashboard = dashboards[0]
+    
+    all_kpi_sets = _collect_kpi_sets_for_dashboard(root, dashboard)
+            
+    if not all_kpi_sets:
+        return []
+
+    # Intersection Logic: Start with a copy of the first set and intersect with the rest.
+    common_kpis = all_kpi_sets[0].copy() 
+
+    for kpi_set in all_kpi_sets[1:]:
+        common_kpis.intersection_update(kpi_set)
+
+    return sorted(list(common_kpis))
+
+# -----------------------------------------------------------------------------
+# Function 2: Union (New Request)
+# -----------------------------------------------------------------------------
+
+def get_dashboard_kpi_union(path):
+    """
+    Returns a comprehensive list of all unique KPIs used across all worksheets 
+    in the first dashboard found in the Tableau XML file (the Union).
+
+    Args:
+        path (str): The file path to the Tableau XML (.twb) file.
+
+    Returns:
+        list[str]: A sorted list of all unique KPI names.
+    """
+    tree = ET.parse(path)
+    root = tree.getroot()
+    
+    # Focus on the first dashboard found
+    dashboards = root.findall(".//dashboard")
+    if not dashboards:
+        return []
+        
+    dashboard = dashboards[0]
+
+    all_kpi_sets = _collect_kpi_sets_for_dashboard(root, dashboard)
+            
+    if not all_kpi_sets:
+        return []
+
+    # Union Logic: Combine all sets into one comprehensive set.
+    union_kpis = set()
+
+    for kpi_set in all_kpi_sets:
+        union_kpis.update(kpi_set)
+
+    # Return the final result as a sorted list
+    return sorted(list(union_kpis))
