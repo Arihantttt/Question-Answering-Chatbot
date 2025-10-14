@@ -2,50 +2,77 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 
 def get_dashboard_hierarchy_with_intersection(path):
+    """
+    Parses a Tableau XML file, identifies the KPIs used in each worksheet of the 
+    first dashboard found, and returns a list of only the KPIs that are common
+    (intersect) across all worksheets in that dashboard.
+
+    Args:
+        path (str): The file path to the Tableau XML (.twb) file.
+
+    Returns:
+        list[str]: A list of common KPI names (including calculated formulas).
+    """
     tree = ET.parse(path)
     root = tree.getroot()
-    dashboards = defaultdict(dict)
+    
+    # --- Focus on the first dashboard found, assuming the input represents one ---
+    dashboards = root.findall(".//dashboard")
+    if not dashboards:
+        return []
+        
+    dashboard = dashboards[0]
+    
+    # This list will hold a set of KPIs for *each* worksheet found
+    all_kpi_sets = []
 
-    # Step 1: Collect all KPIs per worksheet
-    for dashboard in root.findall(".//dashboard"):
-        dash_name = (
-            dashboard.attrib.get("caption")
-            or dashboard.attrib.get("name")
-            or "Unnamed Dashboard"
-        )
-
-        for zone in dashboard.findall(".//zone"):
-            ws_name = zone.attrib.get("name")
-            if not ws_name:
-                continue
-
-            dashboards[dash_name][ws_name] = []
-            worksheets = root.findall(f".//worksheet[@name='{ws_name}']")
-
-            for ws in worksheets:
-                for col in ws.findall(".//column"):
-                    # Extract KPI name
-                    kpi_name = col.attrib.get("caption") or col.attrib.get("name")
-                    if not kpi_name or kpi_name.strip() == "":
-                        continue
-
-                    # If calculated, append formula
-                    calc = col.find("calculation")
-                    if calc is not None:
-                        formula = calc.attrib.get("formula")
-                        if formula:
-                            kpi_name = f"{kpi_name} ({formula})"
-
-                    if kpi_name not in dashboards[dash_name][ws_name]:
-                        dashboards[dash_name][ws_name].append(kpi_name)
-
-    # Step 2: Get intersection of KPIs across all worksheets in each dashboard
-    final_output = {}
-    for dash_name, ws_dict in dashboards.items():
-        all_kpis = [set(kpis) for kpis in ws_dict.values() if kpis]
-        if not all_kpis:
+    # Step 1: Collect all KPIs per worksheet, storing them as sets
+    for zone in dashboard.findall(".//zone"):
+        ws_name = zone.attrib.get("name")
+        if not ws_name:
             continue
-        common_kpis = set.intersection(*all_kpis) if len(all_kpis) > 1 else all_kpis[0]
-        final_output[dash_name] = sorted(list(common_kpis))
 
-    return final_output
+        # Use a set for the current worksheet to ensure uniqueness of KPIs
+        current_kpis = set()
+        
+        # A worksheet name may appear multiple times if reused, but we only need 
+        # to find its definition once.
+        worksheets = root.findall(f".//worksheet[@name='{ws_name}']")
+
+        for ws in worksheets:
+            # We assume all worksheets with the same name share the same definition/KPIs
+            for col in ws.findall(".//column"):
+                # Extract KPI name
+                kpi_name = col.attrib.get("caption") or col.attrib.get("name")
+                if not kpi_name or kpi_name.strip() == "":
+                    continue
+
+                # If calculated, append formula
+                calc = col.find("calculation")
+                if calc is not None:
+                    formula = calc.attrib.get("formula")
+                    if formula:
+                        kpi_name = f"{kpi_name} ({formula})"
+
+                current_kpis.add(kpi_name)
+        
+        # Only include the set if it's not empty, and we haven't processed this worksheet already
+        if current_kpis and current_kpis not in all_kpi_sets:
+            all_kpi_sets.append(current_kpis)
+            
+    # Step 2: Get intersection of KPIs across all worksheet sets
+    
+    if not all_kpi_sets:
+        # If no worksheets or KPIs were found, return an empty list
+        return []
+
+    # Initialize the intersection set with the KPIs from the first worksheet
+    common_kpis = all_kpi_sets[0]
+
+    # Intersect with the remaining KPI sets
+    for kpi_set in all_kpi_sets[1:]:
+        # Use intersection_update for efficient set operation
+        common_kpis.intersection_update(kpi_set)
+
+    # Return the final result as a sorted list (nothing else)
+    return sorted(list(common_kpis))
