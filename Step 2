@@ -1,0 +1,29 @@
+# Step 2: Get intersection of KPIs across all worksheets in each dashboard
+    # The result will be stored under the key "kpi_intersection" within each dashboard's dictionary.
+    for dash_name, worksheets in dashboards.items():
+        # Get all lists of KPIs from all worksheets in the current dashboard
+        all_kpi_lists = list(worksheets.values())
+
+        if not all_kpi_lists:
+            # Handle dashboards with no worksheets
+            dashboards[dash_name]["kpi_intersection"] = []
+            continue
+
+        # Initialize the intersection set with the KPIs from the first worksheet
+        # converting the list to a set for efficient intersection operations.
+        common_kpis = set(all_kpi_lists[0])
+
+        # Intersect with the remaining KPI lists
+        for kpis in all_kpi_lists[1:]:
+            # If at any point the intersection becomes empty, we can stop early
+            if not common_kpis:
+                break
+            common_kpis.intersection_update(set(kpis))
+
+        # Store the intersection result back into the dashboard's dict
+        # Convert the set back to a sorted list for consistent output.
+        worksheets["kpi_intersection"] = sorted(list(common_kpis))
+
+    # Step 3: Return the final result
+    # Convert defaultdict back to a standard dictionary for cleaner output
+    return dict(dashboards)
