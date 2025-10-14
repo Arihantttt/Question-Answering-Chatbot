@@ -1,14 +1,11 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
-def get_dashboard_hierarchy_with_fields(path):
+def get_dashboard_hierarchy(path):
     tree = ET.parse(path)
     root = tree.getroot()
-
     dashboards = defaultdict(dict)
-    worksheets = defaultdict(set)
 
-    # --- Step 1: Extract dashboards and worksheets ---
     for dashboard in root.findall(".//dashboard"):
         dash_name = (
             dashboard.attrib.get("caption")
@@ -20,33 +17,29 @@ def get_dashboard_hierarchy_with_fields(path):
             ws_name = zone.attrib.get("name")
             if not ws_name:
                 continue
+
             dashboards[dash_name][ws_name] = []
+            worksheets = root.findall(f".//worksheet[@name='{ws_name}']")
 
-    # --- Step 2: Extract worksheet field dependencies ---
-    for worksheet in root.findall(".//worksheet"):
-        ws_name = worksheet.attrib.get("name")
-        if not ws_name:
-            continue
+            for ws in worksheets:
+                for col in ws.findall(".//column"):
+                    # Extract KPI name
+                    kpi_name = col.attrib.get("caption") or col.attrib.get("name")
 
-        for field in worksheet.findall(".//column"):
-            field_name = field.attrib.get("name")
-            if field_name:
-                worksheets[ws_name].add(field_name)
+                    # Skip blank or None
+                    if not kpi_name or kpi_name.strip() == "":
+                        continue
 
-    # --- Step 3: Compute common and unique fields ---
-    if worksheets:
-        common_fields = set.intersection(*worksheets.values())
-    else:
-        common_fields = set()
+                    # Handle calculated fields: append actual formula name
+                    calc = col.find("calculation")
+                    if calc is not None:
+                        formula = calc.attrib.get("formula")
+                        if formula:
+                            kpi_name = f"{kpi_name} ({formula})"
 
-    unique_fields = {}
-    for ws, fields in worksheets.items():
-        unique_fields[ws] = fields - common_fields
+                    # Skip duplicates
+                    if kpi_name not in dashboards[dash_name][ws_name]:
+                        dashboards[dash_name][ws_name].append(kpi_name)
 
-    # --- Step 4: Return everything ---
-    return {
-        "dashboards": dict(dashboards),
-        "worksheets_fields": dict(worksheets),
-        "common_fields": common_fields,
-        "unique_fields": unique_fields
-    }
+    # Convert defaultdict → normal dict
+    return {dash: dict(ws) for dash, ws in dashboards.items()}
