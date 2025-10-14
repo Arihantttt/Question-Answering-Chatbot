@@ -1,115 +1,41 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
-# Helper function to collect all unique KPI sets from the worksheets in a dashboard.
-def _collect_kpi_sets_for_dashboard(root, dashboard):
-    """
-    Internal helper to find all unique KPIs used in each worksheet of the given dashboard.
-    Returns a list of sets, where each set contains the KPIs for a single worksheet.
-    """
-    all_kpi_sets = []
-    # Set to track worksheet names already processed, preventing duplicates if 
-    # the same worksheet is used multiple times in the dashboard layout (zones).
-    processed_worksheets = set() 
-
-    for zone in dashboard.findall(".//zone"):
-        ws_name = zone.attrib.get("name")
-        
-        # Skip unnamed zones or zones we have already processed
-        if not ws_name or ws_name in processed_worksheets:
-            continue
-
-        current_kpis = set()
-        
-        # Find the definition of the worksheet by name
-        worksheets = root.findall(f".//worksheet[@name='{ws_name}']")
-
-        for ws in worksheets:
-            # We assume all worksheets with the same name share the same definition/KPIs
-            for col in ws.findall(".//column"):
-                kpi_name = col.attrib.get("caption") or col.attrib.get("name")
-                if not kpi_name or kpi_name.strip() == "":
-                    continue
-
-                # Check for and append formula if it is a calculated field
-                calc = col.find("calculation")
-                if calc is not None:
-                    formula = calc.attrib.get("formula")
-                    if formula:
-                        kpi_name = f"{kpi_name} ({formula})"
-
-                current_kpis.add(kpi_name)
-        
-        if current_kpis:
-            all_kpi_sets.append(current_kpis)
-            processed_worksheets.add(ws_name)
-            
-    return all_kpi_sets
-
-# -----------------------------------------------------------------------------
-# Function 1: Intersection
-# -----------------------------------------------------------------------------
-
-def get_dashboard_hierarchy_with_intersection(path):
-    """
-    Returns a list of KPIs that are common (intersect) across all worksheets in the 
-    first dashboard found in the Tableau XML file.
-    """
+def get_dashboard_hierarchy(path):
     tree = ET.parse(path)
     root = tree.getroot()
-    
-    dashboards = root.findall(".//dashboard")
-    if not dashboards:
-        return []
-        
-    dashboard = dashboards[0]
-    all_kpi_sets = _collect_kpi_sets_for_dashboard(root, dashboard)
-            
-    if not all_kpi_sets:
-        return []
+    dashboards = defaultdict(set)  # use set to avoid duplicates
 
-    common_kpis = all_kpi_sets[0].copy() 
+    for dashboard in root.findall(".//dashboard"):
+        dash_name = (
+            dashboard.attrib.get("caption")
+            or dashboard.attrib.get("name")
+            or "Unnamed Dashboard"
+        )
 
-    for kpi_set in all_kpi_sets[1:]:
-        common_kpis.intersection_update(kpi_set)
+        for zone in dashboard.findall(".//zone"):
+            ws_name = zone.attrib.get("name")
+            if not ws_name:
+                continue
 
-    return sorted(list(common_kpis))
+            worksheets = root.findall(f".//worksheet[@name='{ws_name}']")
+            for ws in worksheets:
+                for col in ws.findall(".//column"):
+                    # Extract KPI name
+                    kpi_name = col.attrib.get("caption") or col.attrib.get("name")
 
-# -----------------------------------------------------------------------------
-# Function 2: Union
-# -----------------------------------------------------------------------------
+                    # Skip blank or None
+                    if not kpi_name or kpi_name.strip() == "":
+                        continue
 
-def get_dashboard_kpi_union(path):
-    """
-    Returns a comprehensive list of all unique KPIs used across all worksheets 
-    in the first dashboard found in the Tableau XML file (the Union).
-    """
-    tree = ET.parse(path)
-    root = tree.getroot()
-    
-    dashboards = root.findall(".//dashboard")
-    if not dashboards:
-        return []
-        
-    dashboard = dashboards[0]
+                    # Include formula if calculated field exists
+                    calc = col.find("calculation")
+                    if calc is not None:
+                        formula = calc.attrib.get("formula")
+                        if formula:
+                            kpi_name = f"{kpi_name} ({formula})"
 
-    all_kpi_sets = _collect_kpi_sets_for_dashboard(root, dashboard)
-            
-    if not all_kpi_sets:
-        return []
+                    dashboards[dash_name].add(kpi_name)
 
-    # --- DEBUGGING STEP ADDED HERE ---
-    print("\n--- Diagnostic: Individual KPI Sets (Should be different for a larger Union) ---")
-    for i, kpi_set in enumerate(all_kpi_sets):
-        print(f"Worksheet Set {i+1} ({len(kpi_set)} KPIs): {kpi_set}")
-    print("------------------------------------------------------------------\n")
-    # ---------------------------------
-
-    # Union Logic: Combine all sets into one comprehensive set.
-    union_kpis = set()
-
-    for kpi_set in all_kpi_sets:
-        union_kpis.update(kpi_set)
-
-    # Return the final result as a sorted list
-    return sorted(list(union_kpis))
+    # Convert sets → sorted lists for readability
+    return {dash: sorted(list(kpis)) for dash, kpis in dashboards.items()}
