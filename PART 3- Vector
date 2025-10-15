@@ -1,0 +1,130 @@
+from openai import AzureOpenAI
+import os, json, faiss
+import numpy as np
+
+# ======================
+# 1️⃣ Azure Client Setup
+# ======================
+client = AzureOpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    api_version="2024-10-01-preview",
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+)
+
+# ======================
+# 2️⃣ Create Vector Store
+# ======================
+def build_kpi_index(descriptions_dict, embedding_model="text-embedding-3-small"):
+    """
+    Create an embedding index for KPIs and dashboard summaries.
+    Returns: (faiss_index, metadata_list)
+    """
+    vectors = []
+    metadata = []
+
+    for twbx_name, twbx_data in descriptions_dict.items():
+        file_desc = twbx_data.get("file_description", "")
+        dashboards = twbx_data.get("dashboards", [])
+
+        for dash in dashboards:
+            dash_name = dash.get("dashboard_name", "")
+            dash_summary = dash.get("summary", "")
+            kpis = dash.get("kpis", []) if isinstance(dash.get("kpis"), list) else []
+
+            # Combine summary and KPIs as searchable text
+            combined_text = f"{file_desc} | Dashboard: {dash_name} | {dash_summary} | KPIs: {', '.join(kpis)}"
+
+            # Get embedding
+            emb = client.embeddings.create(
+                model=embedding_model,
+                input=combined_text
+            ).data[0].embedding
+
+            vectors.append(np.array(emb, dtype=np.float32))
+            metadata.append({
+                "twbx": twbx_name,
+                "dashboard": dash_name,
+                "kpis": kpis,
+                "summary": dash_summary
+            })
+
+    # Build FAISS index
+    dimension = len(vectors[0])
+    index = faiss.IndexFlatL2(dimension)
+    index.add(np.vstack(vectors))
+    return index, metadata
+
+
+# ======================
+# 3️⃣ Query Function
+# ======================
+def query_kpi(question, index, metadata, embedding_model="text-embedding-3-small", top_k=3):
+    """
+    Query the FAISS index to find relevant KPI/dashboard for a question.
+    """
+    # Create query embedding
+    query_emb = client.embeddings.create(
+        model=embedding_model,
+        input=question
+    ).data[0].embedding
+
+    query_vector = np.array(query_emb, dtype=np.float32).reshape(1, -1)
+
+    # Search
+    distances, indices = index.search(query_vector, top_k)
+
+    results = [metadata[i] for i in indices[0]]
+    return results
+
+
+# ======================
+# 4️⃣ LLM Explanation
+# ======================
+def explain_results(question, results, llm_model="gpt-4o-mini"):
+    """
+    Use LLM to explain why a given KPI/dashboard is relevant.
+    """
+    context = "\n\n".join([
+        f"TWBX: {r['twbx']}\nDashboard: {r['dashboard']}\nKPIs: {', '.join(r['kpis'])}\nSummary: {r['summary']}"
+        for r in results
+    ])
+
+    prompt = f"""
+You are an analytics assistant.
+A user asked: "{question}"
+
+Based on the below dashboards and KPIs, identify the most relevant .twbx file and dashboard,
+and explain briefly why it matches the question.
+
+Context:
+{context}
+    """
+
+    response = client.chat.completions.create(
+        model=llm_model,
+        messages=[
+            {"role": "system", "content": "You are a Tableau data expert."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3
+    )
+
+    return response.choices[0].message.content.strip()
+
+
+# ======================
+# 5️⃣ Example Usage
+# ======================
+
+# Suppose 'final_descriptions' contains the LLM summaries + KPIs
+# (from your previous AzureOpenAI summarization step)
+
+# Build index
+# index, metadata = build_kpi_index(final_descriptions)
+
+# Query example
+# results = query_kpi("Show me customer churn KPI", index, metadata)
+
+# Explain result using LLM
+# answer = explain_results("Show me customer churn KPI", results)
+# print(answer)
