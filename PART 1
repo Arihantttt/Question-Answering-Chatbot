@@ -1,0 +1,89 @@
+import os
+import zipfile
+import xml.etree.ElementTree as ET
+from collections import defaultdict
+
+def extract_twb_from_twbx(twbx_path, extract_dir="extracted_twb"):
+    """
+    Extracts the .twb (XML) file from a .twbx archive.
+    Returns the path to the extracted .twb file.
+    """
+    os.makedirs(extract_dir, exist_ok=True)
+    with zipfile.ZipFile(twbx_path, 'r') as z:
+        twb_files = [f for f in z.namelist() if f.endswith('.twb')]
+        if not twb_files:
+            print(f"⚠️ No .twb file found inside {twbx_path}")
+            return None
+        twb_path = os.path.join(extract_dir, os.path.basename(twb_files[0]))
+        z.extract(twb_files[0], extract_dir)
+        return os.path.join(extract_dir, twb_files[0])
+
+def get_dashboard_hierarchy_from_twb(twb_path):
+    """
+    Parses a .twb (XML) Tableau file to extract:
+    - Dashboard name
+    - Worksheets in each dashboard
+    - Unique KPI list (across worksheets)
+    """
+    tree = ET.parse(twb_path)
+    root = tree.getroot()
+    dashboards = defaultdict(lambda: {"worksheets": set(), "kpis": set()})
+
+    for dashboard in root.findall(".//dashboard"):
+        dash_name = (
+            dashboard.attrib.get("caption")
+            or dashboard.attrib.get("name")
+            or "Unnamed Dashboard"
+        )
+
+        for zone in dashboard.findall(".//zone"):
+            ws_name = zone.attrib.get("name")
+            if not ws_name:
+                continue
+
+            # Track worksheet
+            dashboards[dash_name]["worksheets"].add(ws_name)
+
+            # Find KPIs from the worksheet
+            worksheets = root.findall(f".//worksheet[@name='{ws_name}']")
+            for ws in worksheets:
+                for col in ws.findall(".//column"):
+                    kpi_name = col.attrib.get("caption") or col.attrib.get("name")
+                    if not kpi_name or kpi_name.strip() == "":
+                        continue
+
+                    # Include calculation formula if available
+                    calc = col.find("calculation")
+                    if calc is not None:
+                        formula = calc.attrib.get("formula")
+                        if formula:
+                            kpi_name = f"{kpi_name} ({formula})"
+
+                    dashboards[dash_name]["kpis"].add(kpi_name)
+
+    # Convert sets → lists for readability
+    for dash in dashboards:
+        dashboards[dash]["worksheets"] = sorted(list(dashboards[dash]["worksheets"]))
+        dashboards[dash]["kpis"] = sorted(list(dashboards[dash]["kpis"]))
+
+    return dict(dashboards)
+
+def process_all_twbx_in_directory(directory):
+    """
+    Loops through all .twbx files in a directory
+    and creates a mega dictionary:
+    { twbx_file : { dashboard_name : { worksheets, kpis } } }
+    """
+    mega_dict = {}
+
+    for file in os.listdir(directory):
+        if file.endswith(".twbx"):
+            file_path = os.path.join(directory, file)
+            twb_path = extract_twb_from_twbx(file_path)
+            if twb_path:
+                dashboards = get_dashboard_hierarchy_from_twb(twb_path)
+                mega_dict[file] = dashboards
+            else:
+                print(f"⚠️ Skipped: {file} (no .twb inside)")
+
+    return mega_dict
