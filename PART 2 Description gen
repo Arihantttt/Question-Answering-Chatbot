@@ -1,0 +1,68 @@
+from openai import AzureOpenAI
+import json
+import os
+
+# Initialize Azure OpenAI client
+client = AzureOpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    api_version="2024-10-01-preview",  # use latest available version
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+)
+
+def generate_dashboard_descriptions(mega_dict, model="gpt-4o-mini"):
+    """
+    Takes a mega_dict (output of twbx parser) and generates
+    a short description for each .twbx file using Azure OpenAI.
+    """
+    descriptions = {}
+
+    for twbx_name, dashboard_data in mega_dict.items():
+        # Convert dashboards and KPIs to readable JSON text
+        data_str = json.dumps(dashboard_data, indent=2)
+
+        prompt = f"""
+You are a Tableau analytics expert.
+Given the below dictionary of dashboards, worksheets, and KPIs extracted from a .twbx file,
+generate a short (1-2 line) summary describing what this file is likely about.
+
+Dictionary:
+{data_str}
+
+Output Format (strictly JSON):
+{{
+  "file_description": "A one or two line summary of the workbook.",
+  "dashboards": [
+    {{ "dashboard_name": "<dashboard_name>", "summary": "<short summary of this dashboard>" }},
+    ...
+  ]
+}}
+"""
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a data visualization and Tableau expert."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+
+        # Extract model response
+        content = response.choices[0].message.content.strip()
+
+        try:
+            desc_json = json.loads(content)
+        except json.JSONDecodeError:
+            desc_json = {
+                "file_description": content,
+                "dashboards": []
+            }
+
+        descriptions[twbx_name] = desc_json
+
+    return descriptions
+
+
+# Example usage (after you've created mega_dict in previous cell):
+# final_descriptions = generate_dashboard_descriptions(mega_dict)
+# print(json.dumps(final_descriptions, indent=2))
