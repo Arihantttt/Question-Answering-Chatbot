@@ -1,1 +1,128 @@
 pip install faiss-cpu sentence-transformers transformers numpy
+
+import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
+from transformers import pipeline
+
+# --- 1. Define Data (Your Python Dictionary) ---
+data_dictionary = {
+    1: {"text": "The quick brown fox jumps over the lazy dog.", "source": "fables_book"},
+    2: {"text": "Faiss is a library for efficient similarity search and clustering of dense vectors.", "source": "faiss_docs"},
+    3: {"text": "Python dictionaries store data values in key:value pairs and are unordered.", "source": "python_docs"},
+    4: {"text": "Semantic search aims to understand the intent and context of the search query.", "source": "ai_blog"},
+    5: {"text": "Retrieval-Augmented Generation (RAG) combines a retriever (like Faiss) and a generator (like an LLM).", "source": "ai_paper"},
+}
+
+# Extract just the text content for embedding
+texts = [item["text"] for item in data_dictionary.values()]
+original_keys = list(data_dictionary.keys())
+
+# --- 2. Generate Embeddings ---
+# Use a pre-trained sentence transformer model
+print("Loading Sentence Transformer model...")
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2') 
+# This is a fast and good general-purpose model
+
+print("Generating embeddings...")
+embeddings = embedding_model.encode(texts, convert_to_numpy=True)
+dimension = embeddings.shape[1]
+print(f"Embeddings generated with dimension: {dimension}")
+
+# Convert embeddings to float32 as required by Faiss
+embeddings = embeddings.astype('float32')
+
+# --- 3. Build the Faiss Index ---
+
+# Choose a Faiss index type (IndexFlatL2 is simple brute-force, good for small/mid size)
+index = faiss.IndexFlatL2(dimension)
+
+# Add the vectors to the index
+index.add(embeddings)
+print(f"Faiss index created with {index.ntotal} vectors.")
+
+# --- 4. Map Index ID to Original Data Key ---
+# The Faiss index ID (0, 1, 2, ...) corresponds directly to the index in our 'texts' and 'original_keys' lists
+# We can use the original_keys list for mapping back to the dictionary
+id_to_key = {i: original_keys[i] for i in range(len(original_keys))}
+
+# --- 5. Question Answering with RAG ---
+
+def ask_question_with_faiss_rag(question, index, embedding_model, data_dictionary, k=2):
+    """
+    Performs similarity search and uses a local LLM for Q&A.
+    """
+    # 5a. Convert the question to a vector
+    query_embedding = embedding_model.encode([question], convert_to_numpy=True).astype('float32')
+
+    # 5b. Search the Faiss index
+    # D: Distances, I: Indices of the nearest neighbors
+    D, I = index.search(query_embedding, k)
+    
+    # 5c. Retrieve the corresponding text chunks
+    retrieved_context = []
+    print("\n--- Retrieved Context (k={}) ---".format(k))
+    for i, faiss_id in enumerate(I[0]):
+        if faiss_id < 0: # Handle cases where k is larger than ntotal, though rare with IndexFlatL2
+            continue 
+            
+        # Map Faiss ID back to the original text key
+        original_key = original_keys[faiss_id]
+        
+        # Get the full data from the dictionary
+        data_entry = data_dictionary[original_key]
+        
+        text_chunk = data_entry["text"]
+        source = data_entry["source"]
+        distance = D[0][i]
+
+        retrieved_context.append(text_chunk)
+        print(f"Chunk {i+1} (Source: {source}, Distance: {distance:.4f}): {text_chunk}")
+
+    context_str = "\n".join(retrieved_context)
+
+    # 5d. Pass context and question to an LLM
+    
+    # For a simple, local LLM-like response, we'll use a basic pipeline.
+    # In a real-world RAG system, you'd integrate with OpenAI, Gemini, Llama, etc.
+    try:
+        qa_pipeline = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
+        
+        llm_input = {
+            'question': question,
+            'context': context_str
+        }
+        
+        print("\n--- LLM Generating Answer ---")
+        answer = qa_pipeline(llm_input)
+        
+        print(f"\nFinal Answer: {answer['answer']}")
+        print(f"LLM Score: {answer['score']:.4f}")
+        
+    except Exception as e:
+        print("\n--- LLM Generation Failed (requires model download) ---")
+        print(f"Error: {e}")
+        print("\nUsing simple context retrieval as final output.")
+        print("\nFinal Answer (from retrieved context):\n", context_str)
+        
+
+# --- Ask the Questions ---
+
+# Question 1: About the dictionary structure
+question_1 = "How does a Python dictionary store data?"
+print("\n" + "="*50)
+print(f"Question: {question_1}")
+ask_question_with_faiss_rag(question_1, index, embedding_model, data_dictionary, k=1)
+
+# Question 2: About the core concept
+question_2 = "What is the RAG process?"
+print("\n" + "="*50)
+print(f"Question: {question_2}")
+ask_question_with_faiss_rag(question_2, index, embedding_model, data_dictionary, k=2)
+
+# Question 3: About Faiss
+question_3 = "What is Faiss used for?"
+print("\n" + "="*50)
+print(f"Question: {question_3}")
+ask_question_with_faiss_rag(question_3, index, embedding_model, data_dictionary, k=1)
+
