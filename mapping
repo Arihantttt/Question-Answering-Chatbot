@@ -1,0 +1,68 @@
+import re
+
+def replace_mapped_words(query: str, mapping_dict: dict) -> str:
+    """
+    Replaces words/phrases in a user query based on a dictionary mapping.
+
+    Args:
+        query: The user's input string.
+        mapping_dict: A dictionary where keys are the words/phrases to find
+                      and values are their replacements.
+    Returns:
+        The modified query string.
+    """
+
+    # 1. Prepare and Sort the Keys
+    # Sort keys by length (longest first) to ensure phrases are replaced before
+    # their component parts (e.g., 'smart TV' before 'TV').
+    sorted_keys = sorted(mapping_dict.keys(), key=len, reverse=True)
+
+    # 2. Iterate and Replace
+    for key in sorted_keys:
+        replacement = mapping_dict[key]
+
+        # Escape special regex characters in the key to ensure it's matched literally
+        # and ignore case for the matching part of the key.
+        # \b is a word boundary, but that might be too strict for phrases with symbols.
+        # A simpler approach is to treat the query as-is.
+
+        # Create a regex pattern for the key, ignoring case
+        # We use re.escape to handle symbols like '?', '.', or '()'
+        pattern = re.escape(key)
+
+        # Use re.sub to perform the replacement globally (all occurrences)
+        # re.IGNORECASE ensures "smart tv" matches "Smart TV"
+        query = re.sub(pattern, replacement, query, flags=re.IGNORECASE)
+
+
+    # 3. Clean up (Optional but Recommended)
+    # The replacement above handles the core task. If the original query had
+    # symbols at the end (like '?') that you want to preserve *after* replacement,
+    # you might need a more complex capture/replace logic.
+    # However, based on the requirements, the above should work well.
+
+    return query
+
+# --- Example Usage ---
+
+mapping = {
+    "TV": "television",
+    "smart TV": "internet-enabled device",
+    "How to?": "guide to",
+    "FAQ": "frequently asked questions",
+    "i'm": "i am",
+    "wi-fi": "wireless network",
+}
+
+user_queries = [
+    "I'm looking for a smart TV guide to download app.",
+    "how to? fix my wi-fi?",
+    "where is the TV FAQ?",
+    "Smart TV is better than a simple TV.", # Demonstrates sorting
+]
+
+print("--- Original Queries and Replacements ---")
+for query in user_queries:
+    new_query = replace_mapped_words(query, mapping)
+    print(f"Original: {query}")
+    print(f"Modified: {new_query}\n")
