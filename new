@@ -1,0 +1,31 @@
+import numpy as np
+import faiss
+import json
+
+def build_single_index(mega_dict, embedding_model="text-embedding-3-small"):
+    """
+    Build a FAISS index for one single combined text (no loops, no per-TWBX iteration).
+    """logi
+    # Convert to string if dictionary
+    if isinstance(mega_dict, dict):
+        combined_text = json.dumps(mega_dict, indent=2)
+    else:
+        combined_text = str(mega_dict)
+
+    if not combined_text.strip():
+        raise ValueError("The input mega_dict is empty or invalid.")
+
+    # Generate embedding
+    emb_data = client.embeddings.create(model=embedding_model, input=combined_text).data
+    if not emb_data:
+        raise ValueError("No embeddings generated — check your input text.")
+
+    emb = np.array(emb_data[0].embedding, dtype=np.float32).reshape(1, -1)
+
+    # Create FAISS index
+    dimension = len(emb[0])
+    index = faiss.IndexFlatL2(dimension)
+    index.add(emb)
+
+    metadata = [{"content": combined_text}]
+    return index, metadata
