@@ -65,3 +65,20 @@ response = client.chat.completions.create(
 # Extract and print LLM response
 answer = response.choices[0].message.content.strip()
 print("\nLLM Response:\n", answer)
+
+
+
+filtered_dict = {}
+
+for twbx_name, dashboards in mega_dict.items():
+    for dash_name, dash_data in dashboards.items():
+        # Find intersection between dashboard KPIs and matched KPIs
+        common_kpis = set(dash_data.get("kpis", [])) & set(matched_kpis)
+        
+        if common_kpis:  # If dashboard has at least one relevant KPI
+            if twbx_name not in filtered_dict:
+                filtered_dict[twbx_name] = {}
+            filtered_dict[twbx_name][dash_name] = {
+                "worksheets": dash_data.get("worksheets", []),
+                "kpis": list(common_kpis)
+            }
