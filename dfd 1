@@ -1,0 +1,67 @@
+import json
+from openai import AzureOpenAI
+
+# --- Query standardization function ---
+def query_standardization(path, query):
+    """
+    Replaces KPI synonyms in query based on mapping file.
+    Returns both the cleaned query and list of matched KPIs.
+    """
+    matched_kpis = []
+    with open(path, 'r') as file:
+        data = json.load(file)
+
+    # Merge nested dicts (if JSON is structured by file names)
+    all_mappings = {}
+    for k, v in data.items():
+        all_mappings.update(v)
+
+    # Replace and record KPIs
+    for kpi, standard in all_mappings.items():
+        if kpi.lower() in query.lower():
+            query = query.replace(kpi, standard)
+            matched_kpis.append(standard)
+
+    return query.strip(), list(set(matched_kpis))
+
+
+# --- Example Usage ---
+context_path = "context.json"
+user_query = "In which state has maximum approval rate and maximum queue productic"
+
+# Standardize the query + extract KPIs
+cleaned_query, found_kpis = query_standardization(context_path, user_query)
+
+print("Cleaned Query:", cleaned_query)
+print("Matched KPIs:", found_kpis)
+
+
+# --- Send to AzureOpenAI for reasoning based only on found KPIs ---
+prompt = f"""
+User is asking: {cleaned_query}
+
+These are the detected KPIs: {found_kpis}
+
+Search and explain which dashboards (from your context) are most relevant for these KPIs only.
+Provide concise reasoning.
+"""
+
+# Initialize Azure client
+client = AzureOpenAI(
+    api_key="YOUR_API_KEY",
+    api_version="2024-05-01-preview",
+    azure_endpoint="https://YOUR-ENDPOINT.openai.azure.com/"
+)
+
+response = client.chat.completions.create(
+    model="gpt_40_ask_analytics",  # Replace with your Azure model deployment name
+    messages=[
+        {"role": "system", "content": "You are a data analytics assistant that maps KPIs to dashboards."},
+        {"role": "user", "content": prompt}
+    ],
+    temperature=0.1
+)
+
+# Extract and print LLM response
+answer = response.choices[0].message.content.strip()
+print("\nLLM Response:\n", answer)
