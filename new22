@@ -1,0 +1,34 @@
+import pandas as pd
+
+rows = []
+
+for twbx_name, twbx_data in mega_dict.items():
+    file_desc = twbx_data.get("file_description", "")
+    dashboards = twbx_data.get("dashboards", {})
+
+    for dash_name, dash_data in dashboards.items():
+        dash_desc = dash_data.get("description", "")
+        kpis = ", ".join(dash_data.get("kpis", []))
+
+        rows.append({
+            "TWBX File": twbx_name,
+            "File Description": file_desc,
+            "Dashboard": dash_name,
+            "Dashboard Description": dash_desc,
+            "KPIs": kpis
+        })
+
+# Convert to DataFrame
+df = pd.DataFrame(rows, columns=[
+    "TWBX File",
+    "File Description",
+    "Dashboard",
+    "Dashboard Description",
+    "KPIs"
+])
+
+# Save as Excel
+output_path = "dashboard_descriptions_kpis.xlsx"
+df.to_excel(output_path, index=False)
+
+print(f"✅ Excel file saved successfully: {output_path}")
