@@ -1,0 +1,18 @@
+output_path = "filtered_dashboard_data.xlsx"
+df.to_excel(output_path, index=False)
+print(f"Excel file saved successfully: {output_path}")
+
+import pandas as pd
+
+rows = []
+for twbx_name, dashboards in filtered_dict.items():
+    for dash_name, dash_data in dashboards.items():
+        row = {
+            "TWBX File": twbx_name,
+            "Dashboard": dash_name,
+            "Worksheets": ", ".join(dash_data.get("worksheets", [])),
+            "KPIs": ", ".join(dash_data.get("kpis", []))
+        }
+        rows.append(row)
+
+df = pd.DataFrame(rows)
