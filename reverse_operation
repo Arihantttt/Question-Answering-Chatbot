@@ -1,0 +1,32 @@
+import pandas as pd
+
+# Load Excel
+df = pd.read_excel("dashboard_descriptions_kpis.xlsx")
+
+mega_dict = {}
+
+for _, row in df.iterrows():
+    file_name = row["TWBX File"]
+    file_desc = row["File Description"]
+    dash_name = row["Dashboard"]
+    dash_desc = row["Dashboard Description"]
+    kpis = row["KPIs"].split(",") if isinstance(row["KPIs"], str) else []
+
+    # Clean spaces in KPIs
+    kpis = [k.strip() for k in kpis if k.strip()]
+
+    # Create file entry if not exists
+    if file_name not in mega_dict:
+        mega_dict[file_name] = {
+            "file_description": file_desc,
+            "dashboards": {}
+        }
+
+    # Create dashboard entry
+    mega_dict[file_name]["dashboards"][dash_name] = {
+        "description": dash_desc,
+        "kpis": kpis
+    }
+
+print("✅ Successfully reconstructed dictionary!")
+print(mega_dict)
