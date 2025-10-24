@@ -1,0 +1,15 @@
+matching_dashboards = []
+
+for twbx_name, twbx_data in python_dict.items():
+    dashboards = twbx_data.get("dashboards", [])
+    
+    for dash in dashboards:
+        dashboard_kpis = set(dash.get("kpis", []))
+
+        # check if all KPIs in query_kpis are included
+        if set(query_kpis).issubset(dashboard_kpis):
+            matching_dashboards.append({
+                "file_name": twbx_name,
+                "dashboard_name": dash.get("dashboard_name"),
+                "matched_kpis": query_kpis
+            })
