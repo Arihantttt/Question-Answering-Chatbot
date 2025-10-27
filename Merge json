@@ -1,0 +1,30 @@
+import json
+
+# Load JSON file
+with open("mapping.json", "r") as f:
+    data = json.load(f)
+
+# Your second dictionary (same structure)
+new_data = {
+    "biss_context": {
+        "ratio": "comparison",
+        "sum": "aggregate sum"
+    },
+    "abbr_general": {
+        "ISP": "internet provider"
+    },
+    "personal": {
+        "cust_id": "customer id"
+    }
+}
+
+# Merge nested keys instead of overwriting entire sections
+for key in new_data:
+    if key in data and isinstance(data[key], dict):
+        data[key].update(new_data[key])
+    else:
+        data[key] = new_data[key]
+
+# Save back to JSON
+with open("mapping.json", "w") as f:
+    json.dump(data, f, indent=4)
