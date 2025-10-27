@@ -1,0 +1,26 @@
+def process_twbx_from_excel(excel_path, twbx_directory):
+    df = pd.read_excel(excel_path)
+
+    if "TWBX File" not in df.columns:
+        raise ValueError("Excel must contain a column named 'TWBX File'")
+
+    mega_dict = {}
+
+    for _, row in df.iterrows():
+        file_name_no_ext = str(row["TWBX File"]).strip()
+        file_name = file_name_no_ext + ".twbx"  # ✅ Add extension automatically
+
+        twbx_path = os.path.join(twbx_directory, file_name)
+
+        if not os.path.exists(twbx_path):
+            print(f"❌ File not found: {file_name} — Skipping")
+            continue
+
+        twb_path = extract_twb_from_twbx(twbx_path)
+        if twb_path:
+            dashboards = get_dashboard_hierarchy_from_twb(twb_path)
+            mega_dict[file_name_no_ext] = dashboards  # ✅ Store without extension
+        else:
+            print(f"⚠️ Skipped: {file_name} (no .twb inside)")
+
+    return mega_dict
