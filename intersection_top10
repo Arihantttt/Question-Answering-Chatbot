@@ -1,0 +1,26 @@
+matching_dashboards = []
+
+combined_kpis_set = set(combined_list)
+
+for twbx_name, twbx_data in python_dict.items():
+    dashboards = twbx_data.get("dashboards", [])
+
+    for dash in dashboards:
+        dashboard_kpis_set = set(dash.get("KPIs", []))
+
+        matched = combined_kpis_set.intersection(dashboard_kpis_set)
+        matched_count = len(matched)
+
+        if matched_count > 0:
+            matching_dashboards.append({
+                "file_name": twbx_name,
+                "dashboard_name": dash.get("dashboard_name"),
+                "matched_kpis": list(matched),
+                "match_count": matched_count
+            })
+
+# Sort dashboards by highest matches
+matching_dashboards.sort(key=lambda x: x["match_count"], reverse=True)
+
+# Take top 10
+top_10_dashboards = matching_dashboards[:10]
