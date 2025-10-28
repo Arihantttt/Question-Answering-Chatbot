@@ -1,0 +1,4 @@
+result = df[df["key_column"].isin(keys)]["value_column"].tolist()import re
+
+keys = re.findall(r'\d+\.\s*([A-Za-z_]+)', text)
+print(keys)
