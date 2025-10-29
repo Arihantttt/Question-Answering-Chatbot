@@ -1,0 +1,24 @@
+import json
+import os
+
+# Load existing JSON dict
+if os.path.exists("existing.json"):
+    with open("existing.json", "r") as f:
+        existing_dict = json.load(f)
+else:
+    existing_dict = {}
+
+# Merge dictionaries
+for workbook, kpi_dict in new_dict.items():
+    if workbook not in existing_dict:
+        existing_dict[workbook] = {}
+    
+    for kpi, summary in kpi_dict.items():
+        # ✅ If KPI already exists, overwrite or update
+        existing_dict[workbook][kpi] = summary
+
+# Save merged result back to JSON
+with open("existing.json", "w") as f:
+    json.dump(existing_dict, f, indent=4)
+
+print("Merge completed successfully.")
