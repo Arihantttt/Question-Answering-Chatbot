@@ -22,3 +22,25 @@ print("✅ Merged Description Dictionary Ready!")import json
 def save_json(data, path):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+
+import os
+
+def process_multiple_groups(base_directory):
+    group_descriptions = {}
+
+    for group in os.listdir(base_directory):
+        group_dir = os.path.join(base_directory, group)
+        if not os.path.isdir(group_dir):
+            continue
+
+        print(f"📌 Processing: {group}")
+
+        group_mega_dict = process_all_twbx_in_directory(group_dir)
+
+        # Send to LLM for summarization
+        group_summary = get_descriptions_from_llm(group_mega_dict)
+
+        group_descriptions[group] = group_summary
+
+    return group_descriptions
