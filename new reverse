@@ -1,0 +1,7 @@
+inverted_dict = {}
+
+for workbook, kpi_dict in context_data.items():
+    for kpi, desc in kpi_dict.items():
+        if isinstance(desc, str):
+            inverted_dict[desc.lower()] = kpi
+            inverted_dict[kpi.lower()] = kpi   # also support reversing KPI itself
