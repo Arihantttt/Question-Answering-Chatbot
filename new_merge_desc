@@ -1,0 +1,24 @@
+def merge_group_descriptions(groups_dict):
+    final_dict = {}
+
+    for group_name, dashboards_dict in groups_dict.items():
+        for file_name, file_data in dashboards_dict.items():
+            
+            if file_name not in final_dict:
+                final_dict[file_name] = file_data
+            else:
+                # Merge dashboards inside the same file if they exist in multiple groups
+                final_dict[file_name]["dashboards"].update(
+                    file_data.get("dashboards", {})
+                )
+
+    return final_dictbase_dir = "dashboards"  # contains subdirectories for groups
+
+all_groups = process_multiple_groups(base_dir)
+final_description_dict = merge_group_descriptions(all_groups)
+
+print("✅ Merged Description Dictionary Ready!")import json
+
+def save_json(data, path):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
