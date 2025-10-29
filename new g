@@ -1,0 +1,18 @@
+import pandas as pd
+
+# Suppose `df` is your DataFrame
+# df columns: workbook, KPIs, summary
+
+nested_dict = {}
+
+for _, row in df.iterrows():
+    workbook = row['workbook']
+    kpi = row['KPIs']
+    summary = row['summary']
+    
+    if workbook not in nested_dict:
+        nested_dict[workbook] = {"KPIs": {}}
+    
+    nested_dict[workbook]["KPIs"][kpi] = summary
+
+print(nested_dict)
