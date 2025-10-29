@@ -1,0 +1,17 @@
+def query_standardization(query, data):
+    matched_kpis = []
+
+    # iterate each workbook
+    for workbook, kpi_dict in data.items():
+
+        # iterate each KPI inside each workbook
+        for kpi, desc in kpi_dict.items():
+
+            # lowercase matching
+            if kpi.lower() in query.lower():
+                query = query.replace(kpi, desc if pd.notna(desc) else kpi)
+
+                matched_kpis.append(kpi)
+                matched_kpis.append(desc if pd.notna(desc) else kpi)
+
+    return query, list(set(matched_kpis))
