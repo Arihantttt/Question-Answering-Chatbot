@@ -1,0 +1,47 @@
+import pandas as pd
+from pprint import pprint
+
+# -------------------------------------------------
+# 1. Load the Excel file
+# -------------------------------------------------
+excel_path = "KPIs.xlsx"                     # <-- change to your file
+df = pd.read_excel(excel_path)               # , sheet_name="Sheet1"
+
+# -------------------------------------------------
+# 2. Column names – adjust to match your file
+# -------------------------------------------------
+workbook_col = "Workbook Name"   # e.g., "Workbook", "File", …
+kpi_col      = "KPI"             # e.g., "KPI Name", "Metric", …
+
+# -------------------------------------------------
+# 3. Helper: split description from the rest of KPIs
+# -------------------------------------------------
+result = {}
+
+# Group by workbook
+for workbook, group in df.groupby(workbook_col):
+    # Sort by index to guarantee the *first* row is the description row
+    group = group.sort_index()
+
+    # ---- Description: first non-empty KPI cell ----
+    desc_series = group[kpi_col].dropna()
+    if desc_series.empty:
+        description = None
+    else:
+        description = desc_series.iloc[0]          # first entry = description
+        # Remove the description row from the KPI list
+        group = group.iloc[1:]
+
+    # ---- KPIs: all remaining non-empty cells ----
+    kpis = group[kpi_col].dropna().tolist()
+
+    # Store in nested dict
+    result[workbook] = {
+        "description": description,
+        "kpis": kpis
+    }
+
+# -------------------------------------------------
+# 4. Show the final dictionary
+# -------------------------------------------------
+pprint(result)
