@@ -1,0 +1,13 @@
+result = {}
+for workbook, group in df.groupby(workbook_col):
+    # Description: first non-empty in its own column
+    desc = group[description_col].dropna()
+    description = desc.iloc[0] if not desc.empty else None
+
+    # KPIs: all non-empty values in KPI column
+    kpis = group[kpi_col].dropna().tolist()
+
+    result[workbook] = {
+        "description": description,
+        "kpis": kpis
+    }
