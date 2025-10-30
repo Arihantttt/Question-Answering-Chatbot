@@ -1,0 +1,37 @@
+def query_standardization(query, data):
+    lower_query = query.strip().lower()
+    matched_kpis = []
+    new_query = lower_query  # Start with the lowercased query
+
+    # Collect all possible KPI replacements, sorted by length (longer first)
+    replacements = []
+    for workbook, kpi_dict in data.items():
+        for kpi, desc in kpi_dict.items():
+            kpi_lower = kpi.strip().lower()
+            if kpi_lower in lower_query:
+                replacements.append((kpi_lower, desc.strip()))
+                matched_kpis.append(kpi)
+                matched_kpis.append(desc)
+
+    # Sort by length descending to avoid partial replacements
+    replacements.sort(key=lambda x: len(x[0]), reverse=True)
+
+    # Apply replacements in order
+    for kpi_lower, desc in replacements:
+        new_query = new_query.replace(kpi_lower, desc.lower())  # or desc if you want original case
+
+    return new_query, list(set(matched_kpis))
+
+
+# Example usage:
+user_query = "What is the total revenue and profit margin?"
+context_data = {
+    "Finance": {
+        "Revenue": "Total Sales Income",
+        "Profit Margin": "Net Profit Percentage"
+    }
+}
+
+cleaned_query, matched_kpis_list = query_standardization(user_query, context_data)
+print("Cleaned Query:", cleaned_query)
+print("Matched KPIs:", matched_kpis_list)
