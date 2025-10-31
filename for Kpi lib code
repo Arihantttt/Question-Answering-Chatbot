@@ -1,0 +1,32 @@
+import pandas as pd
+
+# ------------------------------------------------------------------
+# Your existing data (replace this with your actual processed_data)
+# ------------------------------------------------------------------
+# processed_data = { ... }   # <-- put your real dict here
+# For demonstration only:
+processed_data = {
+    'abc.twbx': {
+        'Dashboard1': {'kpis': ['Sales', 'Profit', 'Margin']},
+        'Dashboard2': {'kpis': ['Orders', 'Units', 'AvgPrice']},
+        'Dashboard3': {'kpis': ['Growth', 'YoY']},
+    }
+}
+# ------------------------------------------------------------------
+
+twb_name = 'abc.twbx'          # the workbook you want to process
+rows = []                      # list that will hold (dashboard, kpi) pairs
+
+for dashboard, info in processed_data[twb_name].items():
+    for kpi in info['kpis']:
+        rows.append([twb_name, kpi])   # repeat workbook name
+
+# Create a DataFrame
+df = pd.DataFrame(rows, columns=['Workbook', 'KPI'])
+
+# Write to Excel (install pandas & openpyxl if needed: pip install pandas openpyxl)
+output_file = 'kpi_output.xlsx'
+df.to_excel(output_file, index=False)
+
+print(f"Excel file created: {output_file}")
+print(df)
