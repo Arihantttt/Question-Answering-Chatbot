@@ -1,0 +1,34 @@
+master_description_dict = {}   # ← was () → use {} for dict
+
+for i in set(kpi_def['Workbook']):
+    workbook_key = i + '.twbx'         # ← add extension here
+    if workbook_key not in processed_data:
+        continue                       # skip if no twbx
+
+    # ——— SUMMARY ———
+    summaries = kpi_def[
+        (kpi_def['Workbook'] == i) & 
+        kpi_def['Desc/Summary'].notna()
+    ]['Desc/Summary'].tolist()
+
+    summary = ' | '.join(summaries) if summaries else 'No summary'
+
+    # ——— KPI DEFINITIONS ———
+    temp_kpi_def_dict = {}
+    subset = kpi_def[kpi_def['Workbook'] == i]
+    for _, row in subset.iterrows():
+        kpi = row['KPIS']
+        definitions = row['Definitions']
+        if pd.isna(definitions):
+            definitions = kpi
+        temp_kpi_def_dict[kpi] = definitions
+
+    # ——— DASHBOARDS ———
+    dashboards = list(processed_data[workbook_key].keys())
+
+    # ——— BUILD FINAL ENTRY ———
+    master_description_dict[i] = {
+        'summary': summary,
+        'dashboards': dashboards,
+        'kpi_def': temp_kpi_def_dict
+    }
