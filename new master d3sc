@@ -1,0 +1,37 @@
+master_description_dict = {}
+
+# Preprocess processed_data keys (normalize case and whitespace)
+processed_data_normalized = {k.lower().strip(): v for k, v in processed_data.items()}
+
+# Iterate unique workbook names
+for workbook_name in set(kpi_def['Workbook_name_sharepoint']):
+    if pd.isna(workbook_name):
+        continue
+
+    # Find first non-null summary
+    summaries = kpi_def.loc[kpi_def['Workbook_name_sharepoint'] == workbook_name, 'Desc/Summary']
+    summary = next((x for x in summaries if pd.notna(x)), None)
+
+    workbook_key = f"{workbook_name}.twbx"
+    normalized_key = workbook_key.lower().strip()
+
+    # Match regardless of case or spaces
+    if normalized_key in processed_data_normalized:
+        # Safe reference to matched workbook data
+        matched_data = processed_data_normalized[normalized_key]
+
+        temp_kpi_def_dict = {}
+        subset = kpi_def[kpi_def['Workbook_name_sharepoint'] == workbook_name]
+
+        for _, row in subset.iterrows():
+            kpi = row['KPIS']
+            definitions = row['Definitions']
+            if pd.isna(definitions):
+                definitions = kpi
+            temp_kpi_def_dict[kpi] = definitions
+
+        master_description_dict[workbook_name] = {
+            'summary': summary,
+            'dashboards': list(matched_data.keys()),
+            'kpi_def': temp_kpi_def_dict
+        }
