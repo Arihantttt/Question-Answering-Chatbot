@@ -1,0 +1,8 @@
+dict1 = {'file1.twbx': 10, 'file2.twbx': 20, 'file3.twbx': 30}
+dict2 = {'file1': 'A', 'file2': 'B', 'file4': 'C'}
+
+# Strip '.twbx' from keys in dict1
+base_keys1 = {k.rsplit('.twbx', 1)[0] for k in dict1}
+common_bases = base_keys1 & dict2.keys()
+
+print(common_bases)   # {'file1', 'file2'}
