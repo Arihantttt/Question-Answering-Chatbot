@@ -1,0 +1,43 @@
+def get_dashboard_hierarchy_from_twb(twb_path):
+    import xml.etree.ElementTree as ET
+    from collections import defaultdict
+
+    tree = ET.parse(twb_path)
+    root = tree.getroot()
+    dashboards = defaultdict(lambda: {"worksheets": set(), "kpis": set()})
+
+    for dashboard in root.findall(".//dashboard"):
+        dash_name = (
+            dashboard.attrib.get("caption")
+            or dashboard.attrib.get("name")
+            or "Unnamed Dashboard"
+        )
+
+        # Only take worksheets actually referenced in dashboard zones
+        used_worksheets = set()
+        for zone in dashboard.findall(".//zone"):
+            ws_name = zone.attrib.get("name")
+            if ws_name:
+                used_worksheets.add(ws_name)
+
+        # Collect KPIs only from used worksheets
+        for ws_name in used_worksheets:
+            worksheets = root.findall(f".//worksheet[@name='{ws_name}']")
+            for ws in worksheets:
+                for col in ws.findall(".//column"):
+                    kpi_name = col.attrib.get("caption") or col.attrib.get("name")
+                    if not kpi_name:
+                        continue
+
+                    calc = col.find("calculation")
+                    if calc is not None:
+                        formula = calc.attrib.get("formula")
+                        if formula:
+                            kpi_name = f"{kpi_name} ({formula})"
+
+                    dashboards[dash_name]["kpis"].add(kpi_name)
+
+        dashboards[dash_name]["worksheets"] = sorted(list(used_worksheets))
+        dashboards[dash_name]["kpis"] = sorted(list(dashboards[dash_name]["kpis"]))
+
+    return dict(dashboards)
