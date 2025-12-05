@@ -1,0 +1,71 @@
+from flashtext import KeywordProcessor
+import time
+
+class FastBypassLayer:
+    def __init__(self, keyword_answer_map):
+        """
+        Initializes the processor.
+        :param keyword_answer_map: Dict where key = keyword to match, value = static answer.
+        """
+        # specialized data structure for fast string searching (Aho-Corasick variant)
+        self.processor = KeywordProcessor(case_sensitive=False)
+        self.response_map = {}
+
+        # Load keywords into the processor
+        # We map the keyword to a specific 'intent_key' to retrieve the answer later
+        for keyword, answer in keyword_answer_map.items():
+            self.processor.add_keyword(keyword, keyword) # mapping term -> term
+            self.response_map[keyword] = answer
+
+    def get_response(self, query):
+        """
+        Checks if query contains specific keywords. 
+        Returns (Answer, True) if bypassed, (None, False) if LLM is needed.
+        """
+        # extract_keywords returns a list of matching keywords found in the string
+        found_keywords = self.processor.extract_keywords(query)
+
+        if found_keywords:
+            # Priority Logic: Currently returns the answer for the FIRST match found.
+            # You can modify this to handle multiple matches if needed.
+            match = found_keywords[0]
+            return self.response_map[match], True
+        
+        return None, False
+
+# --- usage example ---
+
+# 1. Define your static answers and triggers
+# keys can be specific technical terms, error codes, or greetings
+config = {
+    "pricing": "Our standard plan is $10/month and Pro is $20/month.",
+    "refund": "Refunds are processed within 3-5 business days.",
+    "api key": "You can generate an API key in the User Settings dashboard.",
+    "hello": "Hello! How can I assist you with our documentation today?"
+}
+
+# 2. Initialize the layer (Do this once when app starts)
+bypass_layer = FastBypassLayer(config)
+
+# 3. Simulate User Queries
+user_queries = [
+    "What is the pricing for the pro plan?",   # Should match 'pricing'
+    "My api key is not working",               # Should match 'api key'
+    "Tell me about the architecture"           # No match -> Go to LLM
+]
+
+print(f"{'Query':<40} | {'Source':<10} | {'Response'}")
+print("-" * 80)
+
+for q in user_queries:
+    start_time = time.perf_counter()
+    
+    answer, bypassed = bypass_layer.get_response(q)
+    
+    end_time = time.perf_counter()
+    runtime_ms = (end_time - start_time) * 1000
+    
+    source = "CACHE" if bypassed else "LLM"
+    resp_text = answer if bypassed else ">> Forwarding to RAG/LLM..."
+    
+    print(f"{q:<40} | {source:<10} | {resp_text} ({runtime_ms:.4f} ms)")
